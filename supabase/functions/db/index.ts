@@ -18,7 +18,16 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const sql = neon(Deno.env.get("NEON_DATABASE_URL")!);
+    const neonConnectionString = normalizeNeonConnectionString(
+      Deno.env.get("NEON_DATABASE_URL"),
+    );
+    if (!neonConnectionString) {
+      throw new Error(
+        "Missing NEON_DATABASE_URL. Paste only the raw postgresql:// connection string (not a 'psql ...' command).",
+      );
+    }
+
+    const sql = neon(neonConnectionString);
     const { action, params = {} } = (await req.json()) as RequestBody;
 
     // Verify admin token for write operations
@@ -614,4 +623,25 @@ function base64UrlDecode(str: string): Uint8Array {
     bytes[i] = binary.charCodeAt(i);
   }
   return bytes;
+}
+
+function normalizeNeonConnectionString(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  // Common mistake: pasting the whole CLI command like:
+  //   psql 'postgresql://user:pass@host/db?sslmode=require'
+  // We want to extract just the URL part.
+  if (trimmed.toLowerCase().startsWith("psql")) {
+    const quoted = trimmed.match(/psql\s+['\"]([^'\"]+)['\"]/i);
+    if (quoted?.[1]) return quoted[1].trim();
+
+    const parts = trimmed.split(/\s+/).filter(Boolean);
+    const maybeUrl = parts[1];
+    if (maybeUrl) return maybeUrl.replace(/^['\"]|['\"]$/g, "").trim();
+  }
+
+  return trimmed.replace(/^['\"]|['\"]$/g, "").trim();
 }
