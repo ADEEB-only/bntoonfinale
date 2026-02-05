@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, BookOpen, Calendar, Tag, Star, Eye, ArrowUpDown } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+ import { CommentSection } from "@/components/comments/CommentSection";
 
 const SeriesPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -231,6 +232,9 @@ const SeriesPage = () => {
             </div>
           )}
         </div>
+
+        {/* Comments Section */}
+        {id && <CommentSection seriesId={id} />}
       </div>
     </Layout>
   );

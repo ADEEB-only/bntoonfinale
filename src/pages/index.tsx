@@ -8,6 +8,7 @@ import { PopularSidebar } from "@/components/home/PopularSidebar";
 import { JoinUsCard } from "@/components/home/JoinUsCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronRight } from "lucide-react";
+ import { MiniBannerAd, SidebarAd } from "@/components/ads/AdBanner";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -91,7 +92,9 @@ const Index = () => {
               ) : null}
 
               {/* Ad Container */}
-              <div id="container-c35c6f6f42ee902bbfca715ccd1d497f" className="mb-6"></div>
+              <div className="mb-6 flex justify-center">
+                <MiniBannerAd />
+              </div>
 
               {/* Latest Updates Section */}
               <section>
@@ -157,6 +160,9 @@ const Index = () => {
             {/* Right Sidebar */}
             <div className="space-y-6">
               <PopularSidebar />
+              <div className="flex justify-center">
+                <SidebarAd />
+              </div>
               <JoinUsCard />
             </div>
           </div>

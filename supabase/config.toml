@@ -1,1 +1,19 @@
-project_id = "iwevhbpyemuzwekottjx"
+ project_id = "iwevhbpyemuzwekottjx"
+ 
+ [functions.db]
+ verify_jwt = false
+ 
+ [functions.upload]
+ verify_jwt = false
+ 
+ [functions.auth]
+ verify_jwt = false
+ 
+ [functions.setup]
+ verify_jwt = false
+ 
+ [functions.telegram-auth]
+ verify_jwt = false
+ 
+ [functions.comments]
+ verify_jwt = false
