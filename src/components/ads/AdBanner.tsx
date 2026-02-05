@@ -28,6 +28,7 @@
      const ins = document.createElement("ins");
      ins.style.width = width === 0 ? "0px" : `${width}px`;
      ins.style.height = height === 0 ? "0px" : `${height}px`;
+    ins.style.display = "inline-block";
      ins.setAttribute("data-width", String(width));
      ins.setAttribute("data-height", String(height));
      ins.className = className;
@@ -39,8 +40,8 @@
      script.src = `${domain}/js/responsive.js`;
      script.async = true;
  
-     ins.appendChild(script);
-     containerRef.current.appendChild(ins);
+    containerRef.current.appendChild(ins);
+    containerRef.current.appendChild(script);
  
      return () => {
        if (containerRef.current) {

@@ -166,6 +166,8 @@
          seriesId={seriesId}
          chapterId={chapterId}
          refreshKey={refreshKey}
+          currentUser={user}
+          onReplySubmitted={() => setRefreshKey((k) => k + 1)}
        />
      </section>
    );

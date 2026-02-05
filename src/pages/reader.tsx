@@ -6,6 +6,7 @@ import { MinimalHeader } from "@/components/reader/MinimalHeader";
 import { MinimalImageReader } from "@/components/reader/MinimalImageReader";
 import { MinimalPDFReader } from "@/components/reader/MinimalPDFReader";
 import { EndNavigation } from "@/components/reader/EndNavigation";
+import { CommentSection } from "@/components/comments/CommentSection";
 import { Home } from "lucide-react";
 
 const Reader = () => {
@@ -97,6 +98,14 @@ const Reader = () => {
 
       {/* End Navigation */}
       <EndNavigation prevChapter={prevChapter} nextChapter={nextChapter} />
+
+      {/* Chapter Comments */}
+      <div className="container mx-auto px-4 pb-8 max-w-4xl">
+        <CommentSection 
+          seriesId={chapter.series_id} 
+          chapterId={chapterId}
+        />
+      </div>
     </div>
   );
 };

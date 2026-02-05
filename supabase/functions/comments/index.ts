@@ -5,6 +5,7 @@
    "Access-Control-Allow-Headers":
      "authorization, x-client-info, apikey, content-type, cookie",
    "Access-Control-Allow-Credentials": "true",
+  "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
  };
  
  // Simple in-memory rate limiter
@@ -87,6 +88,16 @@
      await sql`CREATE INDEX IF NOT EXISTS idx_comments_series_id ON comments(series_id)`;
      await sql`CREATE INDEX IF NOT EXISTS idx_comments_chapter_id ON comments(chapter_id)`;
      await sql`CREATE INDEX IF NOT EXISTS idx_comments_telegram_id ON comments(telegram_id)`;
+      
+      // Add parent_id column for replies if it doesn't exist
+      await sql`
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'comments' AND column_name = 'parent_id') THEN
+            ALTER TABLE comments ADD COLUMN parent_id UUID REFERENCES comments(id) ON DELETE CASCADE;
+          END IF;
+        END $$;
+      `;
+      await sql`CREATE INDEX IF NOT EXISTS idx_comments_parent_id ON comments(parent_id)`;
  
      const url = new URL(req.url);
  
@@ -105,23 +116,37 @@
        let comments;
        if (chapterId) {
          comments = await sql`
-           SELECT id, series_id, chapter_id, telegram_id, telegram_username, telegram_name, content, created_at
+            SELECT id, series_id, chapter_id, telegram_id, telegram_username, telegram_name, content, created_at, parent_id
            FROM comments
-           WHERE series_id = ${seriesId} AND chapter_id = ${chapterId}
+            WHERE series_id = ${seriesId} AND chapter_id = ${chapterId} AND parent_id IS NULL
            ORDER BY created_at DESC
            LIMIT 100
          `;
        } else {
          comments = await sql`
-           SELECT id, series_id, chapter_id, telegram_id, telegram_username, telegram_name, content, created_at
+            SELECT id, series_id, chapter_id, telegram_id, telegram_username, telegram_name, content, created_at, parent_id
            FROM comments
-           WHERE series_id = ${seriesId} AND chapter_id IS NULL
+            WHERE series_id = ${seriesId} AND chapter_id IS NULL AND parent_id IS NULL
            ORDER BY created_at DESC
            LIMIT 100
          `;
        }
+        
+        // Fetch replies for each comment
+        const commentsWithReplies = await Promise.all(
+          comments.map(async (comment: any) => {
+            const replies = await sql`
+              SELECT id, series_id, chapter_id, telegram_id, telegram_username, telegram_name, content, created_at, parent_id
+              FROM comments
+              WHERE parent_id = ${comment.id}
+              ORDER BY created_at ASC
+              LIMIT 50
+            `;
+            return { ...comment, replies };
+          })
+        );
  
-       return new Response(JSON.stringify({ data: comments }), {
+        return new Response(JSON.stringify({ data: commentsWithReplies }), {
          headers: { ...corsHeaders, "Content-Type": "application/json" },
        });
      }
@@ -155,7 +180,7 @@
        }
  
        const body = await req.json();
-       const { seriesId, chapterId, content } = body;
+        const { seriesId, chapterId, content, parentId } = body;
  
        if (!seriesId || !content || typeof content !== "string") {
          return new Response(
@@ -171,16 +196,28 @@
            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
          );
        }
+        
+        // If replying, verify parent exists
+        if (parentId) {
+          const parentExists = await sql`SELECT id FROM comments WHERE id = ${parentId}`;
+          if (parentExists.length === 0) {
+            return new Response(
+              JSON.stringify({ error: "Parent comment not found" }),
+              { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+        }
  
        const result = await sql`
-         INSERT INTO comments (series_id, chapter_id, telegram_id, telegram_username, telegram_name, content)
+          INSERT INTO comments (series_id, chapter_id, telegram_id, telegram_username, telegram_name, content, parent_id)
          VALUES (
            ${seriesId},
            ${chapterId || null},
            ${user.telegram_id},
            ${user.telegram_username || null},
            ${user.telegram_name},
-           ${sanitizedContent}
+            ${sanitizedContent},
+            ${parentId || null}
          )
          RETURNING *
        `;
@@ -190,6 +227,78 @@
          headers: { ...corsHeaders, "Content-Type": "application/json" },
        });
      }
+      
+      if (req.method === "DELETE") {
+        // Protected endpoint - requires auth
+        const cookieHeader = req.headers.get("cookie") || "";
+        const authToken = extractCookie(cookieHeader, "tg_auth");
+        
+        // Also check Authorization header for admin token
+        const authHeader = req.headers.get("authorization");
+        const adminToken = authHeader?.replace("Bearer ", "");
+
+        if (!authToken && !adminToken) {
+          return new Response(
+            JSON.stringify({ error: "Unauthorized" }),
+            { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const body = await req.json();
+        const { commentId } = body;
+
+        if (!commentId) {
+          return new Response(
+            JSON.stringify({ error: "commentId is required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        
+        // Fetch the comment to check ownership
+        const comment = await sql`SELECT telegram_id FROM comments WHERE id = ${commentId}`;
+        if (comment.length === 0) {
+          return new Response(
+            JSON.stringify({ error: "Comment not found" }),
+            { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        
+        // Check if admin (verify admin JWT)
+        let isAdmin = false;
+        if (adminToken && jwtSecret) {
+          try {
+            const adminPayload = await verifyAdminJWT(adminToken, jwtSecret);
+            if (adminPayload && adminPayload.role === "admin") {
+              isAdmin = true;
+            }
+          } catch {
+            // Not an admin token
+          }
+        }
+        
+        // Check if user owns the comment
+        let isOwner = false;
+        if (authToken && jwtSecret) {
+          const user = await verifyJWT(authToken, jwtSecret);
+          if (user && user.telegram_id === comment[0].telegram_id) {
+            isOwner = true;
+          }
+        }
+        
+        if (!isAdmin && !isOwner) {
+          return new Response(
+            JSON.stringify({ error: "You can only delete your own comments" }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        
+        // Delete the comment (CASCADE will handle replies)
+        await sql`DELETE FROM comments WHERE id = ${commentId}`;
+        
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
  
      return new Response(
        JSON.stringify({ error: "Method not allowed" }),
@@ -268,3 +377,50 @@
    }
    return bytes;
  }
+
+interface AdminJWTPayload {
+  role: string;
+  exp: number;
+}
+
+async function verifyAdminJWT(token: string, secret: string): Promise<AdminJWTPayload | null> {
+  try {
+    const [headerB64, payloadB64, signatureB64] = token.split(".");
+    if (!headerB64 || !payloadB64 || !signatureB64) return null;
+
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["verify"]
+    );
+
+    const signatureInput = `${headerB64}.${payloadB64}`;
+    const signature = base64UrlDecode(signatureB64);
+    const signatureBuffer = new ArrayBuffer(signature.length);
+    new Uint8Array(signatureBuffer).set(signature);
+
+    const valid = await crypto.subtle.verify(
+      "HMAC",
+      key,
+      signatureBuffer,
+      encoder.encode(signatureInput)
+    );
+
+    if (!valid) return null;
+
+    const payload = JSON.parse(
+      atob(payloadB64.replace(/-/g, "+").replace(/_/g, "/"))
+    ) as AdminJWTPayload;
+
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+      return null;
+    }
+
+    return payload;
+  } catch {
+    return null;
+  }
+}
