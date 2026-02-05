@@ -6,6 +6,62 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// Verify admin JWT token for authentication
+async function verifyAdminToken(authHeader: string | null): Promise<boolean> {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return false;
+  }
+  
+  const token = authHeader.slice(7);
+  const secret = Deno.env.get("ADMIN_JWT_SECRET");
+  if (!secret) return false;
+  
+  try {
+    const [headerB64, payloadB64, signatureB64] = token.split(".");
+    if (!headerB64 || !payloadB64 || !signatureB64) return false;
+
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["verify"]
+    );
+
+    const signatureInput = `${headerB64}.${payloadB64}`;
+    const base64 = signatureB64.replace(/-/g, "+").replace(/_/g, "/");
+    const padding = "=".repeat((4 - (base64.length % 4)) % 4);
+    const binary = atob(base64 + padding);
+    const signatureBytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      signatureBytes[i] = binary.charCodeAt(i);
+    }
+
+    const valid = await crypto.subtle.verify(
+      "HMAC",
+      key,
+      signatureBytes.buffer,
+      encoder.encode(signatureInput)
+    );
+
+    if (!valid) return false;
+
+    const payload = JSON.parse(
+      atob(payloadB64.replace(/-/g, "+").replace(/_/g, "/"))
+    );
+
+    // Check expiration and role
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+      return false;
+    }
+
+    return payload.role === "admin";
+  } catch {
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -13,8 +69,32 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { action, email, password } = await req.json();
     const sql = neon(Deno.env.get("NEON_DATABASE_URL")!);
+    
+    // Check if any admin exists
+    let adminExists = false;
+    try {
+      const existing = await sql`SELECT COUNT(*) as count FROM admin_users`;
+      adminExists = (existing as any[])[0]?.count > 0;
+    } catch {
+      // Table doesn't exist yet, allow init_tables without auth
+      adminExists = false;
+    }
+
+    const { action, email, password } = await req.json();
+
+    // If admins exist, require authentication for all actions
+    if (adminExists) {
+      const authHeader = req.headers.get("Authorization");
+      const isAdmin = await verifyAdminToken(authHeader);
+      
+      if (!isAdmin) {
+        return new Response(
+          JSON.stringify({ error: "Unauthorized - admin authentication required" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
 
     if (action === "init_tables") {
       // Create all required tables
