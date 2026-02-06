@@ -59,15 +59,31 @@ async function handleLogin(req: Request): Promise<Response> {
     );
   }
 
-  const sql = neon(Deno.env.get("NEON_DATABASE_URL")!);
+  const neonUrl = Deno.env.get("NEON_DATABASE_URL");
+  if (!neonUrl) {
+    console.error("NEON_DATABASE_URL not configured");
+    return new Response(
+      JSON.stringify({ error: "Server configuration error" }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+  }
+
+  const sql = neon(neonUrl);
 
   // Fetch admin user
+  console.log("Looking up user:", email.toLowerCase().trim());
   const users = await sql`
     SELECT id, email, password_hash FROM admin_users
     WHERE email = ${email.toLowerCase().trim()}
   `;
 
+  console.log("Users found:", (users as any[]).length);
+
   if ((users as any[]).length === 0) {
+    console.log("No user found with email:", email);
     return new Response(
       JSON.stringify({ error: "Invalid credentials" }),
       {
@@ -78,9 +94,12 @@ async function handleLogin(req: Request): Promise<Response> {
   }
 
   const user = (users as any[])[0];
+  console.log("User found, checking password. Hash format:", user.password_hash?.substring(0, 20) + "...");
 
   // Verify password using bcrypt-style comparison
   const isValid = await verifyPassword(password, user.password_hash);
+  console.log("Password verification result:", isValid);
+  
   if (!isValid) {
     return new Response(
       JSON.stringify({ error: "Invalid credentials" }),
