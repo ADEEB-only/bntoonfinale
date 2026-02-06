@@ -81,10 +81,13 @@ Deno.serve(async (req) => {
       adminExists = false;
     }
 
-    const { action, email, password } = await req.json();
+    const { action, email, password, setup_secret } = await req.json();
 
-    // If admins exist, require authentication for all actions
-    if (adminExists) {
+    // Password reset uses ADMIN_JWT_SECRET as a recovery mechanism
+    const isPasswordReset = action === "reset_password" && setup_secret === Deno.env.get("ADMIN_JWT_SECRET");
+
+    // If admins exist and this isn't a password reset, require authentication
+    if (adminExists && !isPasswordReset) {
       const authHeader = req.headers.get("Authorization");
       const isAdmin = await verifyAdminToken(authHeader);
       
@@ -246,8 +249,47 @@ Deno.serve(async (req) => {
       );
     }
 
+    if (action === "reset_password") {
+      if (!email || !password) {
+        return new Response(
+          JSON.stringify({ error: "Email and password are required" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Generate new password hash
+      const salt = crypto.randomUUID().replace(/-/g, "").substring(0, 16);
+      const encoder = new TextEncoder();
+      const data = encoder.encode(salt + password);
+      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hash = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+      const passwordHash = `sha256:${salt}:${hash}`;
+
+      // Update password
+      const result = await sql`
+        UPDATE admin_users 
+        SET password_hash = ${passwordHash}
+        WHERE email = ${email.toLowerCase().trim()}
+        RETURNING id
+      `;
+
+      if ((result as any[]).length === 0) {
+        return new Response(
+          JSON.stringify({ error: "Admin user not found" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log("Password reset for:", email);
+      return new Response(
+        JSON.stringify({ success: true, message: "Password reset successfully" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response(
-      JSON.stringify({ error: "Invalid action. Use 'init_tables' or 'create_admin'" }),
+      JSON.stringify({ error: "Invalid action" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
