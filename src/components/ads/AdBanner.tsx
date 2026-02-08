@@ -77,7 +77,7 @@ export function LargeBannerAd() {
 export function SidebarAd() {
   return (
     <AdBanner
-      width={250}
+      width={300}
       height={250}
       className="m5afd89751f"
       domain="//data527.click"
