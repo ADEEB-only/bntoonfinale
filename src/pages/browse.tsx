@@ -78,7 +78,7 @@ const Browse = () => {
 
         {/* Top Banner Ad */}
         <div className="mb-8 flex justify-center">
-          <LargeBannerAd />
+          <MiniBannerAd />
         </div>
 
         {/* Genre Filters */}
