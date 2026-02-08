@@ -156,9 +156,9 @@ const Browse = () => {
               ))}
             </div>
 
-            {/* Mid-page Native Ad */}
+            {/* Mid-page Banner Ad */}
             <div className="my-10 flex justify-center">
-              <LargeBannerAd />
+              <MiniBannerAd />
             </div>
 
             {/* Infinite Scroll Trigger */}
