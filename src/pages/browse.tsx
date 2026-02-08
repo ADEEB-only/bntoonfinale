@@ -9,16 +9,10 @@ import { BackToTop } from "@/components/ui/back-to-top";
 import { BookOpen, X, Filter, Loader2 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
- import { LargeBannerAd } from "@/components/ads/AdBanner";
+import { MiniBannerAd } from "@/components/ads/AdBanner";
 
 const Browse = () => {
-  const {
-    data,
-    isLoading: seriesLoading,
-    hasNextPage,
-    isFetchingNextPage,
-    fetchNextPage,
-  } = useBrowseSeries();
+  const { data, isLoading: seriesLoading, hasNextPage, isFetchingNextPage, fetchNextPage } = useBrowseSeries();
 
   const { data: genres, isLoading: genresLoading } = useGenres();
 
@@ -38,9 +32,7 @@ const Browse = () => {
   /* Fetch series-genre relations */
   useEffect(() => {
     const fetchSeriesGenres = async () => {
-      const { data, error } = await supabase
-        .from("series_genres")
-        .select("series_id, genre_id");
+      const { data, error } = await supabase.from("series_genres").select("series_id, genre_id");
 
       if (!error && data) {
         const map: Record<string, string[]> = {};
@@ -59,9 +51,7 @@ const Browse = () => {
 
   /* Genre controls */
   const toggleGenre = (genreId: string) => {
-    setSelectedGenres((prev) =>
-      prev.includes(genreId) ? prev.filter((id) => id !== genreId) : [...prev, genreId]
-    );
+    setSelectedGenres((prev) => (prev.includes(genreId) ? prev.filter((id) => id !== genreId) : [...prev, genreId]));
   };
 
   const clearFilters = () => setSelectedGenres([]);
@@ -80,7 +70,6 @@ const Browse = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8 md:py-12">
-
         {/* Header */}
         <div className="mb-8">
           <h1 className="font-display text-3xl md:text-4xl font-bold mb-4">Browse Series</h1>
@@ -106,9 +95,11 @@ const Browse = () => {
                   key={genre.id}
                   onClick={() => toggleGenre(genre.id)}
                   className={`px-3 py-1.5 rounded-full text-sm font-medium transition
-                    ${selectedGenres.includes(genre.id)
-                      ? "bg-accent text-accent-foreground"
-                      : "bg-secondary hover:bg-secondary/80"}`}
+                    ${
+                      selectedGenres.includes(genre.id)
+                        ? "bg-accent text-accent-foreground"
+                        : "bg-secondary hover:bg-secondary/80"
+                    }`}
                 >
                   {genre.name}
                 </button>
