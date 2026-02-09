@@ -11,18 +11,12 @@ export async function dbQuery<T = unknown>(
   params: Record<string, unknown> = {}
 ): Promise<DbResponse<T>> {
   try {
-    const token = localStorage.getItem("admin_token");
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-
     const response = await fetch(DB_FUNCTION_URL, {
       method: "POST",
-      headers,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
       body: JSON.stringify({ action, params }),
     });
 

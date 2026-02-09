@@ -1,10 +1,14 @@
 import { neon } from "https://esm.sh/@neondatabase/serverless@0.10.4";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("Origin") || "*";
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Credentials": "true",
+  };
+}
 
 interface RequestBody {
   action: string;
@@ -12,6 +16,8 @@ interface RequestBody {
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -30,9 +36,9 @@ Deno.serve(async (req) => {
     const sql = neon(neonConnectionString);
     const { action, params = {} } = (await req.json()) as RequestBody;
 
-    // Verify admin token for write operations
-    const authHeader = req.headers.get("Authorization");
-    const isAdmin = await verifyAdminToken(authHeader);
+    // Verify admin token from cookie
+    const cookieHeader = req.headers.get("Cookie") || "";
+    const isAdmin = await verifyAdminToken(cookieHeader);
 
     let result: unknown;
 
@@ -565,10 +571,11 @@ Deno.serve(async (req) => {
   }
 });
 
-async function verifyAdminToken(authHeader: string | null): Promise<boolean> {
-  if (!authHeader?.startsWith("Bearer ")) return false;
+async function verifyAdminToken(cookieHeader: string): Promise<boolean> {
+  const match = cookieHeader.match(/(?:^|;\s*)admin_token=([^;]*)/);
+  if (!match) return false;
   
-  const token = authHeader.replace("Bearer ", "");
+  const token = match[1];
   const secret = Deno.env.get("ADMIN_JWT_SECRET");
   if (!secret) return false;
 

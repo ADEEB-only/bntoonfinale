@@ -9,7 +9,6 @@ interface AuthUser {
 
 interface LoginResponse {
   user?: AuthUser;
-  token?: string;
   error?: string;
 }
 
@@ -29,6 +28,7 @@ export async function login(
       headers: {
         "Content-Type": "application/json",
       },
+      credentials: "include",
       body: JSON.stringify({ email, password }),
     });
 
@@ -38,12 +38,7 @@ export async function login(
       return { error: result.error || "Login failed" };
     }
 
-    // Store token in localStorage
-    if (result.token) {
-      localStorage.setItem("admin_token", result.token);
-    }
-
-    return { user: result.user, token: result.token };
+    return { user: result.user };
   } catch (error) {
     console.error("Login error:", error);
     return {
@@ -53,24 +48,18 @@ export async function login(
 }
 
 export async function verifyToken(): Promise<VerifyResponse> {
-  const token = localStorage.getItem("admin_token");
-  if (!token) {
-    return { valid: false };
-  }
-
   try {
     const response = await fetch(`${AUTH_FUNCTION_URL}/verify`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ token }),
+      credentials: "include",
     });
 
     const result = await response.json();
 
     if (!response.ok) {
-      localStorage.removeItem("admin_token");
       return { valid: false, error: result.error };
     }
 
@@ -81,14 +70,18 @@ export async function verifyToken(): Promise<VerifyResponse> {
   }
 }
 
-export function logout(): void {
-  localStorage.removeItem("admin_token");
-}
-
-export function getToken(): string | null {
-  return localStorage.getItem("admin_token");
+export async function logout(): Promise<void> {
+  try {
+    await fetch(`${AUTH_FUNCTION_URL}/logout`, {
+      method: "POST",
+      credentials: "include",
+    });
+  } catch (error) {
+    console.error("Logout error:", error);
+  }
 }
 
 export function isAuthenticated(): boolean {
-  return !!localStorage.getItem("admin_token");
+  // Can't check HttpOnly cookies from JS; rely on server verification
+  return false;
 }

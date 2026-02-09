@@ -1,12 +1,15 @@
  import { neon } from "https://esm.sh/@neondatabase/serverless@0.10.4";
  
- const corsHeaders = {
-   "Access-Control-Allow-Origin": "*",
-   "Access-Control-Allow-Headers":
-     "authorization, x-client-info, apikey, content-type, cookie",
-   "Access-Control-Allow-Credentials": "true",
-  "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
- };
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("Origin") || "*";
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type, cookie",
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+  };
+}
  
  // Simple in-memory rate limiter
  const rateLimitMap = new Map<number, { count: number; resetAt: number }>();
@@ -54,10 +57,12 @@
    return trimmed.replace(/^['\"]|['\"]$/g, "").trim();
  }
  
- Deno.serve(async (req) => {
-   if (req.method === "OPTIONS") {
-     return new Response("ok", { headers: corsHeaders });
-   }
+Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
  
    try {
      const neonConnectionString = normalizeNeonConnectionString(
@@ -233,9 +238,8 @@
         const cookieHeader = req.headers.get("cookie") || "";
         const authToken = extractCookie(cookieHeader, "tg_auth");
         
-        // Also check Authorization header for admin token
-        const authHeader = req.headers.get("authorization");
-        const adminToken = authHeader?.replace("Bearer ", "");
+        // Also check cookie for admin token
+        const adminToken = extractCookie(cookieHeader, "admin_token");
 
         if (!authToken && !adminToken) {
           return new Response(

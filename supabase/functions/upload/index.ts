@@ -1,8 +1,12 @@
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("Origin") || "*";
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "Access-Control-Allow-Credentials": "true",
+  };
+}
 
 const REGION_CANDIDATES = ["", "ny", "la", "sg", "de", "uk", "syd", "br"] as const;
 
@@ -98,15 +102,17 @@ async function tryBunnyPut(params: {
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    // Verify admin token
-    const authHeader = req.headers.get("Authorization");
-    const isAdmin = await verifyAdminToken(authHeader);
+    // Verify admin token from cookie
+    const cookieHeader = req.headers.get("Cookie") || "";
+    const isAdmin = await verifyAdminToken(cookieHeader);
     if (!isAdmin) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
@@ -249,10 +255,11 @@ Deno.serve(async (req) => {
   }
 });
 
-async function verifyAdminToken(authHeader: string | null): Promise<boolean> {
-  if (!authHeader?.startsWith("Bearer ")) return false;
+async function verifyAdminToken(cookieHeader: string): Promise<boolean> {
+  const match = cookieHeader.match(/(?:^|;\s*)admin_token=([^;]*)/);
+  if (!match) return false;
   
-  const token = authHeader.replace("Bearer ", "");
+  const token = match[1];
   const secret = Deno.env.get("ADMIN_JWT_SECRET");
   if (!secret) return false;
 

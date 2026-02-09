@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { login as authLogin, verifyToken, logout as authLogout, getToken as authGetToken } from "@/lib/auth";
+import { login as authLogin, verifyToken, logout as authLogout } from "@/lib/auth";
 
 interface User {
   id: string;
@@ -66,7 +66,7 @@ export function useAuth() {
   };
 
   const signOut = async () => {
-    authLogout();
+    await authLogout();
     setState({
       user: null,
       loading: false,
@@ -80,6 +80,5 @@ export function useAuth() {
     signIn,
     signOut,
     checkAuth,
-    getToken: authGetToken,
   };
 }

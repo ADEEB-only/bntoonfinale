@@ -16,11 +16,6 @@ export async function uploadFile(
   path: string
 ): Promise<UploadResponse> {
   try {
-    const token = localStorage.getItem("admin_token");
-    if (!token) {
-      return { error: "Not authenticated" };
-    }
-
     const formData = new FormData();
     formData.append("file", file);
     formData.append("path", path);
@@ -28,9 +23,7 @@ export async function uploadFile(
 
     const response = await fetch(UPLOAD_FUNCTION_URL, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      credentials: "include",
       body: formData,
     });
 
@@ -51,20 +44,13 @@ export async function uploadFile(
 
 export async function deleteFile(path: string): Promise<DeleteResponse> {
   try {
-    const token = localStorage.getItem("admin_token");
-    if (!token) {
-      return { error: "Not authenticated" };
-    }
-
     const formData = new FormData();
     formData.append("path", path);
     formData.append("action", "delete");
 
     const response = await fetch(UPLOAD_FUNCTION_URL, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      credentials: "include",
       body: formData,
     });
 
