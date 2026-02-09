@@ -16,6 +16,7 @@ import GenreManager from "./pages/admin/genremanager";
 import NotFound from "./pages/notfound";
 import DMCA from "./pages/dmca";
 import { PageTransition } from "./components/layout/pagetransition";
+import AdminRoute from "./components/admin/AdminRoute";
 
 const queryClient = new QueryClient();
 
@@ -30,11 +31,11 @@ function AnimatedRoutes() {
         <Route path="/series/:id" element={<PageTransition><SeriesPage /></PageTransition>} />
         <Route path="/read/:chapterId" element={<PageTransition><Reader /></PageTransition>} />
         <Route path="/admin/login" element={<PageTransition><AdminLogin /></PageTransition>} />
-        <Route path="/admin" element={<PageTransition><AdminDashboard /></PageTransition>} />
-        <Route path="/admin/series/new" element={<PageTransition><SeriesForm /></PageTransition>} />
-        <Route path="/admin/series/:id/edit" element={<PageTransition><SeriesForm /></PageTransition>} />
-        <Route path="/admin/series/:seriesId/chapters" element={<PageTransition><ChapterManager /></PageTransition>} />
-        <Route path="/admin/genres" element={<PageTransition><GenreManager /></PageTransition>} />
+        <Route path="/admin" element={<PageTransition><AdminRoute><AdminDashboard /></AdminRoute></PageTransition>} />
+        <Route path="/admin/series/new" element={<PageTransition><AdminRoute><SeriesForm /></AdminRoute></PageTransition>} />
+        <Route path="/admin/series/:id/edit" element={<PageTransition><AdminRoute><SeriesForm /></AdminRoute></PageTransition>} />
+        <Route path="/admin/series/:seriesId/chapters" element={<PageTransition><AdminRoute><ChapterManager /></AdminRoute></PageTransition>} />
+        <Route path="/admin/genres" element={<PageTransition><AdminRoute><GenreManager /></AdminRoute></PageTransition>} />
         <Route path="/dmca" element={<PageTransition><DMCA /></PageTransition>} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
