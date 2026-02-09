@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X, Search, LogIn, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { SearchModal } from "@/components/search/SearchModal";
 import {
   Dialog,
@@ -20,7 +20,7 @@ export function Header() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [user, setUser] = useState<TelegramUser | null>(null);
-  const secretSequence = useRef<string[]>([]);
+  
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -57,27 +57,6 @@ export function Header() {
         return;
       }
 
-      // Secret admin access: Type "admin" quickly (within 2 seconds)
-      const key = e.key.toLowerCase();
-      if (key.length === 1 && /[a-z]/.test(key)) {
-        secretSequence.current.push(key);
-        
-        // Keep only the last 5 characters
-        if (secretSequence.current.length > 5) {
-          secretSequence.current = secretSequence.current.slice(-5);
-        }
-        
-        // Check if "admin" was typed
-        if (secretSequence.current.join("") === "admin") {
-          navigate("/admin");
-          secretSequence.current = [];
-        }
-        
-        // Reset sequence after 2 seconds of no typing
-        setTimeout(() => {
-          secretSequence.current = [];
-        }, 2000);
-      }
     };
 
     document.addEventListener("keydown", handleKeyDown);

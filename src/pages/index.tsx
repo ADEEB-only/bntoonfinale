@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { useSeriesWithLatestChapters, useFeaturedSeries } from "@/hooks/useSeriesWithLatestChapters";
 import { FeaturedSection } from "@/components/home/FeaturedSection";
@@ -8,23 +8,13 @@ import { PopularSidebar } from "@/components/home/PopularSidebar";
 import { JoinUsCard } from "@/components/home/JoinUsCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronRight } from "lucide-react";
- import { MiniBannerAd, SidebarAd } from "@/components/ads/AdBanner";
+import { MiniBannerAd, SidebarAd } from "@/components/ads/AdBanner";
 
 const Index = () => {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const { data: featuredData, isLoading: isFeaturedLoading } = useFeaturedSeries();
   const { data: latestSeriesData, isLoading: isLatestLoading } = useSeriesWithLatestChapters(12);
   const featuredSeries = featuredData || [];
   const latestSeries = latestSeriesData || [];
-
-  // Secret URL parameter access: ?access=bntoonadmin
-  useEffect(() => {
-    const accessCode = searchParams.get("access");
-    if (accessCode === "bntoonadmin") {
-      navigate("/admin");
-    }
-  }, [searchParams, navigate]);
 
   useEffect(() => {
   const container = document.getElementById(
