@@ -151,8 +151,8 @@ export function MinimalHeader({
                   <div
                     className={cn(
                       "z-50",
-                      // Mobile: bottom sheet
-                      "fixed sm:absolute bottom-0 sm:bottom-auto left-0 sm:left-1/2 right-0 sm:right-auto",
+                      // Mobile: bottom sheet anchored to bottom
+                      "fixed sm:absolute bottom-0 sm:bottom-auto sm:top-full left-0 sm:left-1/2 right-0 sm:right-auto",
                       "sm:-translate-x-1/2 sm:mt-2",
                       "sm:min-w-[260px] sm:max-w-[300px]",
                       "bg-card border border-border/60 rounded-t-xl sm:rounded-lg",

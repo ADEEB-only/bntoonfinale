@@ -119,7 +119,7 @@ export function ChapterSelector({
             className={cn(
               "absolute z-50 mt-2",
               // Mobile: bottom sheet style
-              "fixed sm:absolute bottom-0 sm:bottom-auto left-0 sm:left-auto right-0 sm:right-auto",
+              "fixed sm:absolute bottom-0 sm:bottom-auto sm:top-full left-0 sm:left-auto right-0 sm:right-auto",
               "sm:min-w-[280px] sm:max-w-[320px]",
               "bg-card border border-border rounded-t-2xl sm:rounded-xl",
               "shadow-lg shadow-black/20",

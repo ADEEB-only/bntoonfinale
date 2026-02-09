@@ -14,8 +14,9 @@ export function AdBanner({ width, height, className, domain, affQuery, placement
   const scriptLoaded = useRef(false);
 
   useEffect(() => {
-    if (!containerRef.current || scriptLoaded.current) return;
-    scriptLoaded.current = true;
+    if (!containerRef.current) return;
+    // Reset on each mount to support SPA navigation
+    containerRef.current.innerHTML = "";
 
     // Create the ins element
     const ins = document.createElement("ins");
@@ -44,7 +45,7 @@ export function AdBanner({ width, height, className, domain, affQuery, placement
     };
   }, [width, height, className, domain, affQuery, placementName]);
 
-  return <div ref={containerRef} className="flex justify-center items-center" data-placement={placementName} />;
+  return <div ref={containerRef} className="flex justify-center items-center overflow-hidden max-w-full" data-placement={placementName} />;
 }
 
 // Pre-configured ad components
