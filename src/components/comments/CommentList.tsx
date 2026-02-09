@@ -43,7 +43,7 @@ export function CommentList({ seriesId, chapterId, refreshKey = 0, currentUser, 
   const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const { toast } = useToast();
-  const { isAdmin, getToken } = useAuth();
+  const { isAdmin } = useAuth();
  
   const fetchComments = useCallback(async () => {
     setIsLoading(true);
@@ -78,14 +78,6 @@ export function CommentList({ seriesId, chapterId, refreshKey = 0, currentUser, 
     setDeletingId(commentId);
     try {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
-      
-      // If admin, include admin token
-      if (isAdmin) {
-        const token = getToken();
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`;
-        }
-      }
 
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/comments`,

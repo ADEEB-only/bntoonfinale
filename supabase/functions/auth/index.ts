@@ -1,11 +1,15 @@
 import { neon } from "https://esm.sh/@neondatabase/serverless@0.10.4";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("Origin") || "*";
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Credentials": "true",
+  };
+}
 
 interface LoginRequest {
   email: string;
@@ -17,6 +21,8 @@ interface VerifyRequest {
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -27,9 +33,11 @@ Deno.serve(async (req) => {
     const action = url.pathname.split("/").pop();
 
     if (action === "login") {
-      return await handleLogin(req);
+      return await handleLogin(req, corsHeaders);
     } else if (action === "verify") {
-      return await handleVerify(req);
+      return await handleVerify(req, corsHeaders);
+    } else if (action === "logout") {
+      return handleLogout(corsHeaders);
     } else {
       return new Response(JSON.stringify({ error: "Not found" }), {
         status: 404,
@@ -46,7 +54,29 @@ Deno.serve(async (req) => {
   }
 });
 
-async function handleLogin(req: Request): Promise<Response> {
+function handleLogout(corsHeaders: Record<string, string>): Response {
+  const clearCookie = [
+    "admin_token=",
+    "HttpOnly",
+    "Secure",
+    "SameSite=None",
+    "Path=/",
+    "Max-Age=0",
+  ].join("; ");
+
+  return new Response(
+    JSON.stringify({ success: true }),
+    {
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "application/json",
+        "Set-Cookie": clearCookie,
+      },
+    }
+  );
+}
+
+async function handleLogin(req: Request, corsHeaders: Record<string, string>): Promise<Response> {
   const { email, password } = (await req.json()) as LoginRequest;
 
   if (!email || !password) {
@@ -122,25 +152,40 @@ async function handleLogin(req: Request): Promise<Response> {
     secret
   );
 
+  // Set token as HttpOnly cookie instead of returning it to client
+  const cookieOptions = [
+    `admin_token=${token}`,
+    "HttpOnly",
+    "Secure",
+    "SameSite=None",
+    "Path=/",
+    `Max-Age=${7 * 24 * 60 * 60}`, // 7 days
+  ].join("; ");
+
   return new Response(
     JSON.stringify({
       user: { id: user.id, email: user.email },
-      token,
     }),
     {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "application/json",
+        "Set-Cookie": cookieOptions,
+      },
     }
   );
 }
 
-async function handleVerify(req: Request): Promise<Response> {
-  const { token } = (await req.json()) as VerifyRequest;
+async function handleVerify(req: Request, corsHeaders: Record<string, string>): Promise<Response> {
+  // Read token from cookie instead of request body
+  const cookieHeader = req.headers.get("Cookie") || "";
+  const token = parseCookie(cookieHeader, "admin_token");
 
   if (!token) {
     return new Response(
-      JSON.stringify({ error: "Token is required" }),
+      JSON.stringify({ valid: false }),
       {
-        status: 400,
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
@@ -151,9 +196,9 @@ async function handleVerify(req: Request): Promise<Response> {
 
   if (!payload) {
     return new Response(
-      JSON.stringify({ error: "Invalid token" }),
+      JSON.stringify({ valid: false }),
       {
-        status: 401,
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
@@ -172,6 +217,11 @@ async function handleVerify(req: Request): Promise<Response> {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     }
   );
+}
+
+function parseCookie(cookieHeader: string, name: string): string | null {
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
+  return match ? match[1] : null;
 }
 
 // Simple password verification (constant-time comparison)
