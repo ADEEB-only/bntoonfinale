@@ -344,8 +344,8 @@ Deno.serve(async (req) => {
               (LOWER(s.title) LIKE '%' || LOWER(${query}) || '%'
                 OR s.alternative_titles::text ILIKE '%' || ${query} || '%'
                 OR s.description ILIKE '%' || ${query} || '%')
-              ${status ? sql`AND s.status = ${status}` : sql``}
-              ${type ? sql`AND s.type = ${type}` : sql``}
+              AND (${status}::text IS NULL OR s.status = ${status})
+              AND (${type}::text IS NULL OR s.type = ${type})
             ORDER BY relevance_score DESC, s.updated_at DESC
             LIMIT ${limit}
             OFFSET ${offset}
@@ -357,9 +357,8 @@ Deno.serve(async (req) => {
               COALESCE((SELECT COUNT(*) FROM chapters WHERE series_id = s.id), 0)::int as chapters_count,
               1.0 as relevance_score
             FROM series s
-            WHERE 1=1
-              ${status ? sql`AND s.status = ${status}` : sql``}
-              ${type ? sql`AND s.type = ${type}` : sql``}
+            WHERE (${status}::text IS NULL OR s.status = ${status})
+              AND (${type}::text IS NULL OR s.type = ${type})
             ORDER BY s.updated_at DESC
             LIMIT ${limit}
             OFFSET ${offset}
