@@ -15,7 +15,7 @@
  export function CommentSection({
    seriesId,
    chapterId,
-   botName = "BNToonCommentsBot",
+   botName = "BnToonAccBot",
  }: CommentSectionProps) {
    const [user, setUser] = useState<TelegramUser | null>(null);
    const [content, setContent] = useState("");

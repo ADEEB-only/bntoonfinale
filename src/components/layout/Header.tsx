@@ -265,7 +265,7 @@ export function Header() {
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-center py-6">
-            <TelegramLogin botName="BNToonCommentsBot" onAuth={handleAuth} />
+            <TelegramLogin botName="BnToonAccBot" onAuth={handleAuth} />
           </div>
         </DialogContent>
       </Dialog>
