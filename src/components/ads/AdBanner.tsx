@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface AdBannerProps {
   width: number;
@@ -9,14 +9,18 @@ interface AdBannerProps {
   placementName: string;
 }
 
+let adInstanceCounter = 0;
+
 export function AdBanner({ width, height, className, domain, affQuery, placementName }: AdBannerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const scriptLoaded = useRef(false);
+  const [instanceId] = useState(() => ++adInstanceCounter);
 
   useEffect(() => {
-    if (!containerRef.current) return;
-    // Reset on each mount to support SPA navigation
-    containerRef.current.innerHTML = "";
+    const container = containerRef.current;
+    if (!container) return;
+
+    // Clear previous content
+    container.innerHTML = "";
 
     // Create the ins element
     const ins = document.createElement("ins");
@@ -29,23 +33,29 @@ export function AdBanner({ width, height, className, domain, affQuery, placement
     ins.setAttribute("data-domain", domain);
     ins.setAttribute("data-affquery", affQuery);
 
-    // Create and append the script
+    container.appendChild(ins);
+
+    // Create and append the script with a cache-buster to force re-execution
     const script = document.createElement("script");
-    script.src = `${domain}/js/responsive.js`;
+    script.src = `${domain}/js/responsive.js?t=${Date.now()}-${instanceId}`;
     script.async = true;
 
-    containerRef.current.appendChild(ins);
-    containerRef.current.appendChild(script);
+    container.appendChild(script);
 
     return () => {
-      if (containerRef.current) {
-        containerRef.current.innerHTML = "";
+      if (container) {
+        container.innerHTML = "";
       }
-      scriptLoaded.current = false;
     };
-  }, [width, height, className, domain, affQuery, placementName]);
+  }, [width, height, className, domain, affQuery, placementName, instanceId]);
 
-  return <div ref={containerRef} className="flex justify-center items-center overflow-hidden max-w-full" data-placement={placementName} />;
+  return (
+    <div
+      ref={containerRef}
+      className="flex justify-center items-center overflow-hidden max-w-full"
+      data-placement={placementName}
+    />
+  );
 }
 
 // Pre-configured ad components
